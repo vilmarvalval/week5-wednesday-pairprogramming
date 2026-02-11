@@ -1,0 +1,17 @@
+//POST
+POST http://localhost:4000/api/jobs
+Content-Type: application/json
+
+{
+  "title": "Job title 1",
+  "type": "Job type 1",
+  "description": "Job description 1",
+  "company": {
+    "name": "Company 1",
+    "contactEmail": "email1@gmail.com",
+    "contactPhone": "012345678"
+  },
+  "location": "Vantaa",
+  "salary": 4000
+}
+
