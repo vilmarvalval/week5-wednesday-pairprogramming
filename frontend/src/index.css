@@ -50,6 +50,56 @@
   background-color: #f9f9f9;
 }
 
+.job-filters {
+  margin-bottom: 20px;
+  padding: 16px;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  background-color: #fff;
+}
+
+.job-filters h3 {
+  margin-bottom: 12px;
+  color: #f1356d;
+}
+
+.job-filters-controls {
+  display: grid;
+  gap: 12px;
+}
+
+.job-filters form {
+  display: grid;
+  gap: 8px;
+}
+
+.job-filters label {
+  font-weight: 600;
+}
+
+.job-filters input,
+.job-filters select {
+  width: 100%;
+  padding: 6px 10px;
+  border: 1px solid #ddd;
+  box-sizing: border-box;
+}
+
+.job-filters button {
+  width: fit-content;
+  background: #f1356d;
+  color: #fff;
+  border: 0;
+  padding: 8px 10px;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.job-filters button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
 .job-preview {
   padding: 15px;
   border: 1px solid #ddd;
@@ -187,4 +237,3 @@
 .logout:hover {
   color: #f1356d;
 }
-

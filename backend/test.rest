@@ -1,7 +1,7 @@
-//GET
+###GET
 GET http://localhost:4000/api/jobs
 
-//POST
+###POST
 POST http://localhost:4000/api/jobs
 Content-Type: application/json
 
@@ -18,3 +18,14 @@ Content-Type: application/json
   "salary": 4000
 }
 
+###GET by type
+GET http://localhost:4000/api/jobs/type/Full-time
+
+###GET search by location
+GET http://localhost:4000/api/jobs/location/Helsinki
+
+###GET filter by salary
+GET http://localhost:4000/api/jobs/salary?min=5000&max=6000
+
+###GET count by type
+GET http://localhost:4000/api/jobs/count/type/Part-time
