@@ -90,7 +90,7 @@ const deleteJob = async (req, res) => {
 };
 
 // Get jobs by type
-getJobsByType = async (req, res) => {
+const getJobsByType = async (req, res) => {
   try {
     const jobs = await Job.find({ type: req.params.type });
     res.status(200).json(jobs);
@@ -100,7 +100,7 @@ getJobsByType = async (req, res) => {
 };
 
 // Search jobs by location
-getJobsByLocation = async (req, res) => {
+const getJobsByLocation = async (req, res) => {
   try {
     const jobs = await Job.find({ location: req.params.location });
     res.status(200).json(jobs);
@@ -110,7 +110,7 @@ getJobsByLocation = async (req, res) => {
 };
 
 // Filter jobs by salary range
-filterJobsBySalary = async (req, res) => {
+const filterJobsBySalary = async (req, res) => {
   const minSalary = Number(req.query.min) || 0;
   const maxSalary = Number(req.query.max) || Infinity;
 
@@ -124,7 +124,7 @@ filterJobsBySalary = async (req, res) => {
   }
 };
 
-countJobsByType = async (req, res) => {
+const countJobsByType = async (req, res) => {
   try {
     const count = await Job.countDocuments({ type: req.params.type });
     res.status(200).json({ type: req.params.type, count });

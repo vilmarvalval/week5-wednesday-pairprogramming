@@ -2,23 +2,25 @@ import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 
 const EditJobPage = () => {
+  const [formData, setFormData] = useState({
+    title: "",
+    type: "",
+    description: "",
+    companyName: "",
+    contactEmail: "",
+    contactPhone: "",
+    location: "",
+    salary: ""
+  });
+  
   const { id } = useParams();
   const navigate = useNavigate();
-
-  const [title, setTitle] = useState("");
-  const [type, setType] = useState("");
-  const [description, setDescription] = useState("");
-  const [companyName, setCompanyName] = useState("");
-  const [contactEmail, setContactEmail] = useState("");
-  const [contactPhone, setContactPhone] = useState("");
-  const [location, setLocation] = useState("");
-  const [salary, setSalary] = useState("");
-
+  
   useEffect(() => {
     const fetchJob = async () => {
       try {
         const res = await fetch(`/api/jobs/${id}`, {
-          method: "GET",
+          method: "PUT",
           headers: {
             "Content-Type": "application/json",
           },
@@ -27,14 +29,7 @@ const EditJobPage = () => {
           throw new Error("Failed to fetch job");
         }
         const data = await res.json();
-        setTitle(data.title);
-        setType(data.type);
-        setDescription(data.description);
-        setCompanyName(data.company.name);
-        setContactEmail(data.company.contactEmail);
-        setContactPhone(data.company.contactPhone);
-        setLocation(data.location);
-        setSalary(data.salary);
+        setFormData(data);
       } catch (error) {
         console.log("Error fetching data", error);
       }
@@ -42,10 +37,33 @@ const EditJobPage = () => {
     fetchJob();
   }, [id]);
 
-  const submitForm = (e) => {
-    e.preventDefault();
-    console.log("EditJobPage");
+  console.log(formData);
+  const handleChange = (e) => {
+    const { id, value } = e.target;
+    setFormData((prev) => ({ ...prev, [id]: value }));
   };
+
+  const submitForm = async (e) => {
+    e.preventDefault();
+
+    try {
+      const response = await fetch(`/api/jobs/${id}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(formData),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to update job. Status: ${response.status}`);
+      }
+
+      navigate(`/jobs/${id}`);
+    } catch (error) {
+      console.error("Error updating job:", error);
+    }
+
 
   const cancelEdit = () => {
     console.log("cancelEdit");
@@ -55,10 +73,19 @@ const EditJobPage = () => {
     <div className="create">
       <h2>Edit Job</h2>
       <form onSubmit={submitForm}>
-        <label>Job title:</label>
-        <input value={title} onChange={(e) => setTitle(e.target.value)} />
+        <label htmlFor="title">Job title:</label>
+        <input
+          id="title"
+          type="text"
+          value={formData.title}
+          onChange={handleChange}
+        />
         <label>Job type:</label>
-        <select value={type} onChange={(e) => setType(e.target.value)}>
+        <select
+          id="type"
+          value={formData.type}
+          onChange={handleChange}
+        >
           <option value="" disabled>
             Select job type
           </option>
@@ -68,37 +95,56 @@ const EditJobPage = () => {
           <option value="Internship">Internship</option>
         </select>
 
-        <label>Job Description:</label>
+        <label htmlFor="description">Job Description:</label>
         <textarea
-          value={description}
-          onChange={(e) => setDescription(e.target.value)}
+          id="description"
+          value={formData.description}
+          onChange={handleChange}
         ></textarea>
-        <label>Company Name:</label>
+        <label htmlFor="companyName">Company Name:</label>
         <input
-          value={companyName}
-          onChange={(e) => setCompanyName(e.target.value)}
+          id="companyName"
+          type="text"
+          value={formData.companyName}
+          onChange={handleChange}
+          
         />
-        <label>Contact Email:</label>
+        <label htmlFor="contactEmail">Contact Email:</label>
         <input
-          value={contactEmail}
-          onChange={(e) => setContactEmail(e.target.value)}
+          id="contactEmail"
+          type="email"
+          value={formData.contactEmail}
+          onChange={handleChange}
         />
-        <label>Contact Phone:</label>
+        <label htmlFor="contactPhone">Contact Phone:</label>
         <input
-          value={contactPhone}
-          onChange={(e) => setContactPhone(e.target.value)}
+          id="contactPhone"
+          type="tel"
+          value={formData.contactPhone}
+          onChange={handleChange}
         />
-        <label>Location:</label>
-        <input value={location} onChange={(e) => setLocation(e.target.value)} />
-        <label>Salary:</label>
-        <input value={salary} onChange={(e) => setSalary(e.target.value)} />
+        <label htmlFor="location">Location:</label>
+        <input
+          id="location"
+          type="text"
+          value={formData.location}
+          onChange={handleChange}
+        />
+        <label htmlFor="salary">Salary:</label>
+        <input
+          id="salary"
+          type="text"
+          value={formData.salary}
+          onChange={handleChange}
+        />
         <button type="submit">Update Job</button>
         <button type="button" onClick={cancelEdit}>
           Cancel
         </button>
       </form>
     </div>
-  );
+   );
+  };
 };
 
 export default EditJobPage;
