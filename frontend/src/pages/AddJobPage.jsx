@@ -2,20 +2,57 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 
 const AddJobPage = () => {
-  const [title, setTitle] = useState("");
-  const [type, setType] = useState("Full-Time");
-  const [location, setLocation] = useState("");
-  const [description, setDescription] = useState("");
-  const [salary, setSalary] = useState(4500);
-  const [companyName, setCompanyName] = useState("");
-  const [contactEmail, setContactEmail] = useState("");
-  const [contactPhone, setContactPhone] = useState("");
+  const [formData, setFormData] = useState({
+    title: "",
+    type: "Full-Time",
+    location: "",
+    description: "",
+    salary: 4500,
+    companyName: "",
+    contactEmail: "",
+    contactPhone: "",
+  });
 
   const navigate = useNavigate();
 
-  const submitForm = (e) => {
+  const handleChange = (e) => {
+    const { id, value } = e.target;
+    setFormData((prev) => ({ ...prev, [id]: value }));
+  };
+
+  const submitForm = async (e) => {
     e.preventDefault();
-    console.log("AddJobPage");
+
+    const newJob = {
+      title: formData.title,
+      type: formData.type,
+      description: formData.description,
+      location: formData.location,
+      salary: formData.salary,
+      company: {
+        name: formData.companyName,
+        contactEmail: formData.contactEmail,
+        contactPhone: formData.contactPhone,
+      },
+    };
+
+    try {
+      const response = await fetch("/api/jobs", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(newJob),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to create job. Status: ${response.status}`);
+      }
+
+      navigate("/");
+    } catch (error) {
+      console.error("Error creating job:", error);
+    }
   };
 
   return (
@@ -26,14 +63,14 @@ const AddJobPage = () => {
         <input
           id="title"
           type="text"
-          value={title}
-          onChange={(e) => setTitle(e.target.value)}
+          value={formData.title}
+          onChange={handleChange}
         />
         <label htmlFor="type">Job type:</label>
         <select
           id="type"
-          value={type}
-          onChange={(e) => setType(e.target.value)}
+          value={formData.type}
+          onChange={handleChange}
         >
           <option value="" disabled>
             Select job type
@@ -45,43 +82,43 @@ const AddJobPage = () => {
         <label htmlFor="description">Job Description:</label>
         <textarea
           id="description"
-          value={description}
-          onChange={(e) => setDescription(e.target.value)}
+          value={formData.description}
+          onChange={handleChange}
         ></textarea>
         <label htmlFor="companyName">Company Name:</label>
         <input
           id="companyName"
           type="text"
-          value={companyName}
-          onChange={(e) => setCompanyName(e.target.value)}
+          value={formData.companyName}
+          onChange={handleChange}
         />
         <label htmlFor="contactEmail">Contact Email:</label>
         <input
           id="contactEmail"
           type="email"
-          value={contactEmail}
-          onChange={(e) => setContactEmail(e.target.value)}
+          value={formData.contactEmail}
+          onChange={handleChange}
         />
         <label htmlFor="contactPhone">Contact Phone:</label>
         <input
           id="contactPhone"
           type="tel"
-          value={contactPhone}
-          onChange={(e) => setContactPhone(e.target.value)}
+          value={formData.contactPhone}
+          onChange={handleChange}
         />
         <label htmlFor="location">Location:</label>
         <input
           id="location"
           type="text"
-          value={location}
-          onChange={(e) => setLocation(e.target.value)}
+          value={formData.location}
+          onChange={handleChange}
         />
         <label htmlFor="salary">Salary:</label>
         <input
           id="salary"
           type="text"
-          value={salary}
-          onChange={(e) => setSalary(e.target.value)}
+          value={formData.salary}
+          onChange={handleChange}
         />
         <button type="submit">Add Job</button>
       </form>
