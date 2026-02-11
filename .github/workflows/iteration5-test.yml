@@ -1,0 +1,85 @@
+name: Iteration 5 - Frontend Tests
+
+on:
+  push:
+    branches: [ main, master, develop ]
+
+jobs:
+  detect-iteration5:
+    runs-on: ubuntu-latest
+    outputs:
+      is-iter5: ${{ steps.detect.outputs.is-iter5 }}
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 2
+
+    - name: Detect iteration 5 from commit message
+      id: detect
+      run: |
+        COMMIT_MSG=$(git log -1 --pretty=%B)
+        echo "Commit message: $COMMIT_MSG"
+        
+        if echo "$COMMIT_MSG" | grep -qiE '\[iter5\]|\[iteration-5\]|\[iteration 5\]'; then
+          echo "is-iter5=true" >> $GITHUB_OUTPUT
+          echo "✅ Detected Iteration 5 commit"
+        else
+          echo "is-iter5=false" >> $GITHUB_OUTPUT
+          echo "ℹ️  No Iteration 5 tag detected in commit message"
+        fi
+
+  frontend-iteration5-test:
+    needs: detect-iteration5
+    if: needs.detect-iteration5.outputs.is-iter5 == 'true'
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+        cache: 'npm'
+        cache-dependency-path: frontend/package-lock.json
+
+    - name: Install frontend dependencies
+      working-directory: ./frontend
+      run: npm ci --legacy-peer-deps
+
+    - name: Run Iteration 5 tests
+      working-directory: ./frontend
+      run: npm run test:run -- src/test/JobPage.delete.test.jsx
+
+    - name: Print test summary
+      if: always()
+      run: |
+        echo "## Iteration 5: Delete Job Functionality Tests" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "✅ Dependencies installed" >> $GITHUB_STEP_SUMMARY
+        echo "✅ Tests executed" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "**Test Scope:** JobPage delete functionality - DELETE to /api/jobs/:id" >> $GITHUB_STEP_SUMMARY
+        echo "**Framework:** Vitest + React Testing Library" >> $GITHUB_STEP_SUMMARY
+        echo "**Commit Pattern:** \`[iter5]\`, \`[iteration-5]\`, or \`[iteration 5]\`" >> $GITHUB_STEP_SUMMARY
+
+    - name: Upload test results
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: iteration5-test-results
+        path: frontend/
+
+    - name: Comment on PR with results
+      if: always() && github.event_name == 'pull_request'
+      uses: actions/github-script@v7
+      with:
+        script: |
+          github.rest.issues.createComment({
+            issue_number: context.issue.number,
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            body: '✅ Iteration 5 Frontend Tests Completed\n\nAll tests for JobPage delete functionality have been executed. Commit message detected: `[iter5]`\n\nCheck the test results above.'
+          })

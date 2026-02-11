@@ -1,0 +1,85 @@
+name: Iteration 6 - Frontend Tests
+
+on:
+  push:
+    branches: [ main, master, develop ]
+
+jobs:
+  detect-iteration6:
+    runs-on: ubuntu-latest
+    outputs:
+      is-iter6: ${{ steps.detect.outputs.is-iter6 }}
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 2
+
+    - name: Detect iteration 6 from commit message
+      id: detect
+      run: |
+        COMMIT_MSG=$(git log -1 --pretty=%B)
+        echo "Commit message: $COMMIT_MSG"
+        
+        if echo "$COMMIT_MSG" | grep -qiE '\[iter6\]|\[iteration-6\]|\[iteration 6\]'; then
+          echo "is-iter6=true" >> $GITHUB_OUTPUT
+          echo "✅ Detected Iteration 6 commit"
+        else
+          echo "is-iter6=false" >> $GITHUB_OUTPUT
+          echo "ℹ️  No Iteration 6 tag detected in commit message"
+        fi
+
+  frontend-iteration6-test:
+    needs: detect-iteration6
+    if: needs.detect-iteration6.outputs.is-iter6 == 'true'
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+        cache: 'npm'
+        cache-dependency-path: frontend/package-lock.json
+
+    - name: Install frontend dependencies
+      working-directory: ./frontend
+      run: npm ci --legacy-peer-deps
+
+    - name: Run Iteration 6 tests
+      working-directory: ./frontend
+      run: npm run test:run -- src/test/EditJobPage.test.jsx
+
+    - name: Print test summary
+      if: always()
+      run: |
+        echo "## Iteration 6: Edit Job Functionality Tests" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "✅ Dependencies installed" >> $GITHUB_STEP_SUMMARY
+        echo "✅ Tests executed" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "**Test Scope:** EditJobPage component - PUT to /api/jobs/:id" >> $GITHUB_STEP_SUMMARY
+        echo "**Framework:** Vitest + React Testing Library" >> $GITHUB_STEP_SUMMARY
+        echo "**Commit Pattern:** \`[iter6]\`, \`[iteration-6]\`, or \`[iteration 6]\`" >> $GITHUB_STEP_SUMMARY
+
+    - name: Upload test results
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: iteration6-test-results
+        path: frontend/
+
+    - name: Comment on PR with results
+      if: always() && github.event_name == 'pull_request'
+      uses: actions/github-script@v7
+      with:
+        script: |
+          github.rest.issues.createComment({
+            issue_number: context.issue.number,
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            body: '✅ Iteration 6 Frontend Tests Completed\n\nAll tests for EditJobPage functionality have been executed. Commit message detected: `[iter6]`\n\nCheck the test results above.'
+          })

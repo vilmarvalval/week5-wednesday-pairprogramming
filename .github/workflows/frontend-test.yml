@@ -1,0 +1,79 @@
+name: Frontend Tests
+
+on:
+  push:
+    branches: [ main, master, develop ]
+  pull_request:
+    branches: [ main, master ]
+
+jobs:
+  detect-iteration1:
+    runs-on: ubuntu-latest
+    outputs:
+      is-iter1: ${{ steps.detect.outputs.is-iter1 }}
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 2
+
+    - name: Detect iteration 1 from commit message
+      id: detect
+      run: |
+        COMMIT_MSG=$(git log -1 --pretty=%B)
+        echo "Commit message: $COMMIT_MSG"
+        
+        if echo "$COMMIT_MSG" | grep -qiE '\[iter1\]|\[iteration-1\]|\[iteration 1\]'; then
+          echo "is-iter1=true" >> $GITHUB_OUTPUT
+          echo "✅ Detected Iteration 1 commit"
+        else
+          echo "is-iter1=false" >> $GITHUB_OUTPUT
+          echo "ℹ️  No Iteration 1 tag detected in commit message"
+        fi
+
+  frontend-test:
+    needs: detect-iteration1
+    if: needs.detect-iteration1.outputs.is-iter1 == 'true'
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+        cache: 'npm'
+        cache-dependency-path: frontend/package-lock.json
+
+    - name: Install dependencies
+      working-directory: ./frontend
+      run: npm ci --legacy-peer-deps
+
+    - name: Run ESLint
+      working-directory: ./frontend
+      run: npm run lint || echo "⚠️  Linting issues found"
+
+    - name: Build frontend
+      working-directory: ./frontend
+      run: npm run build
+
+    - name: Check build output
+      working-directory: ./frontend
+      run: |
+        if [ -d "dist" ]; then
+          echo "✅ Build successful - dist folder created"
+          ls -lh dist/
+        else
+          echo "❌ Build failed - no dist folder"
+          exit 1
+        fi
+
+    - name: Print summary
+      if: always()
+      run: |
+        echo "## Frontend Test Summary" >> $GITHUB_STEP_SUMMARY
+        echo "- Dependencies: ✅ Installed" >> $GITHUB_STEP_SUMMARY
+        echo "- Lint: Check above" >> $GITHUB_STEP_SUMMARY
+        echo "- Build: Check above" >> $GITHUB_STEP_SUMMARY

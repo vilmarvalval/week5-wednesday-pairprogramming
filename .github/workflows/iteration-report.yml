@@ -1,0 +1,162 @@
+name: Iteration Report Generator
+
+on:
+  push:
+    branches: [ main, master, develop ]
+
+jobs:
+  generate-report:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0  # Fetch all history for complete analysis
+
+    - name: Generate Iteration Report
+      run: |
+        echo "# 📊 Iteration Development Report" > iteration-report.md
+        echo "" >> iteration-report.md
+        echo "**Generated:** $(date '+%Y-%m-%d %H:%M:%S UTC')" >> iteration-report.md
+        echo "**Triggered by:** ${{ github.actor }}" >> iteration-report.md
+        echo "" >> iteration-report.md
+        
+        # Get all iteration-related commits
+        echo "## 📝 Iteration Commits Summary" >> iteration-report.md
+        echo "" >> iteration-report.md
+        
+        for iter in 1 2 3 4 5 6; do
+          echo "### Iteration $iter" >> iteration-report.md
+          echo "" >> iteration-report.md
+          
+          # Find commits with iteration tags
+          COMMITS=$(git log --all --grep="\[iter$iter\]" --grep="\[iteration-$iter\]" --grep="\[iteration $iter\]" -i --pretty=format:"%h|%an|%ae|%ad|%s" --date=iso)
+          
+          if [ -z "$COMMITS" ]; then
+            echo "❌ No commits found" >> iteration-report.md
+            echo "" >> iteration-report.md
+          else
+            echo "| Commit | Author | Email | Timestamp | Message |" >> iteration-report.md
+            echo "|--------|--------|-------|-----------|---------|" >> iteration-report.md
+            
+            echo "$COMMITS" | while IFS='|' read -r hash author email date message; do
+              echo "| \`$hash\` | $author | $email | $date | $message |" >> iteration-report.md
+            done
+            echo "" >> iteration-report.md
+          fi
+        done
+        
+        # Statistics section
+        echo "## 📈 Development Statistics" >> iteration-report.md
+        echo "" >> iteration-report.md
+        
+        # Count commits per iteration
+        echo "### Commits per Iteration" >> iteration-report.md
+        echo "" >> iteration-report.md
+        echo "| Iteration | Commit Count |" >> iteration-report.md
+        echo "|-----------|--------------|" >> iteration-report.md
+        
+        TOTAL_ITER_COMMITS=0
+        for iter in 1 2 3 4 5 6; do
+          COUNT=$(git log --all --grep="\[iter$iter\]" --grep="\[iteration-$iter\]" --grep="\[iteration $iter\]" -i --oneline | wc -l)
+          echo "| Iteration $iter | $COUNT |" >> iteration-report.md
+          TOTAL_ITER_COMMITS=$((TOTAL_ITER_COMMITS + COUNT))
+        done
+        echo "| **Total** | **$TOTAL_ITER_COMMITS** |" >> iteration-report.md
+        echo "" >> iteration-report.md
+        
+        # Contributor statistics
+        echo "### 👥 Contributor Statistics" >> iteration-report.md
+        echo "" >> iteration-report.md
+        
+        # Get unique contributors for iteration commits
+        CONTRIBUTORS=$(git log --all --grep="\[iter" -i --pretty=format:"%an <%ae>" | sort | uniq)
+        
+        if [ -n "$CONTRIBUTORS" ]; then
+          echo "| Author | Email | Iteration Commits |" >> iteration-report.md
+          echo "|--------|-------|-------------------|" >> iteration-report.md
+          
+          echo "$CONTRIBUTORS" | while IFS= read -r contributor; do
+            AUTHOR_NAME=$(echo "$contributor" | sed 's/ <.*//')
+            AUTHOR_EMAIL=$(echo "$contributor" | sed 's/.*<//;s/>//')
+            AUTHOR_COMMITS=$(git log --all --grep="\[iter" -i --author="$AUTHOR_EMAIL" --oneline | wc -l)
+            echo "| $AUTHOR_NAME | $AUTHOR_EMAIL | $AUTHOR_COMMITS |" >> iteration-report.md
+          done
+          echo "" >> iteration-report.md
+        fi
+        
+        # Timeline analysis
+        echo "### 📅 Development Timeline" >> iteration-report.md
+        echo "" >> iteration-report.md
+        
+        FIRST_ITER_COMMIT=$(git log --all --grep="\[iter" -i --reverse --pretty=format:"%ad" --date=short | head -1)
+        LAST_ITER_COMMIT=$(git log --all --grep="\[iter" -i --pretty=format:"%ad" --date=short | head -1)
+        
+        if [ -n "$FIRST_ITER_COMMIT" ] && [ -n "$LAST_ITER_COMMIT" ]; then
+          echo "- **First iteration commit:** $FIRST_ITER_COMMIT" >> iteration-report.md
+          echo "- **Latest iteration commit:** $LAST_ITER_COMMIT" >> iteration-report.md
+          
+          # Calculate days between first and last commit
+          if command -v date &> /dev/null; then
+            START_DATE=$(date -d "$FIRST_ITER_COMMIT" +%s 2>/dev/null || date -j -f "%Y-%m-%d" "$FIRST_ITER_COMMIT" +%s 2>/dev/null || echo "0")
+            END_DATE=$(date -d "$LAST_ITER_COMMIT" +%s 2>/dev/null || date -j -f "%Y-%m-%d" "$LAST_ITER_COMMIT" +%s 2>/dev/null || echo "0")
+            
+            if [ "$START_DATE" != "0" ] && [ "$END_DATE" != "0" ]; then
+              DAYS_DIFF=$(( (END_DATE - START_DATE) / 86400 ))
+              echo "- **Development period:** $DAYS_DIFF days" >> iteration-report.md
+              
+              if [ $DAYS_DIFF -gt 0 ] && [ $TOTAL_ITER_COMMITS -gt 0 ]; then
+                AVG_COMMITS=$(echo "scale=2; $TOTAL_ITER_COMMITS / $DAYS_DIFF" | bc 2>/dev/null || echo "N/A")
+                echo "- **Average commits per day:** $AVG_COMMITS" >> iteration-report.md
+              fi
+            fi
+          fi
+        fi
+        echo "" >> iteration-report.md
+        
+        # Repository info
+        echo "## 🔗 Repository Information" >> iteration-report.md
+        echo "" >> iteration-report.md
+        echo "- **Repository:** ${{ github.repository }}" >> iteration-report.md
+        echo "- **Branch:** ${{ github.ref_name }}" >> iteration-report.md
+        echo "- **Commit SHA:** ${{ github.sha }}" >> iteration-report.md
+        echo "- **Workflow Run:** ${{ github.run_number }}" >> iteration-report.md
+
+    - name: Upload Report as Artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: iteration-report-${{ github.run_number }}
+        path: iteration-report.md
+        retention-days: 90
+
+    - name: Add Report to Job Summary
+      run: |
+        if [ -f iteration-report.md ]; then
+          echo "Report file found, adding to summary..."
+          cat iteration-report.md >> $GITHUB_STEP_SUMMARY
+          echo ""
+          echo "=== Report Content Preview ==="
+          cat iteration-report.md
+          echo "=== End of Report ==="
+          echo "Report added successfully to GitHub Actions Summary!"
+        else
+          echo "ERROR: iteration-report.md not found!"
+          ls -la
+          exit 1
+        fi
+
+    - name: Comment Report on PR
+      if: github.event_name == 'pull_request'
+      uses: actions/github-script@v7
+      with:
+        script: |
+          const fs = require('fs');
+          const report = fs.readFileSync('iteration-report.md', 'utf8');
+          
+          github.rest.issues.createComment({
+            issue_number: context.issue.number,
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            body: report
+          });

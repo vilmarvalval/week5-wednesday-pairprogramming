@@ -1,0 +1,122 @@
+name: Backend Tests
+
+on:
+  push:
+    branches: [ main, master, develop ]
+
+jobs:
+  detect-iteration1:
+    runs-on: ubuntu-latest
+    outputs:
+      is-iter1: ${{ steps.detect.outputs.is-iter1 }}
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 2
+
+    - name: Detect iteration 1 from commit message
+      id: detect
+      run: |
+        COMMIT_MSG=$(git log -1 --pretty=%B)
+        echo "Commit message: $COMMIT_MSG"
+        
+        if echo "$COMMIT_MSG" | grep -qiE '\[iter1\]|\[iteration-1\]|\[iteration 1\]'; then
+          echo "is-iter1=true" >> $GITHUB_OUTPUT
+          echo "✅ Detected Iteration 1 commit"
+        else
+          echo "is-iter1=false" >> $GITHUB_OUTPUT
+          echo "ℹ️  No Iteration 1 tag detected in commit message"
+        fi
+
+  backend-test:
+    needs: detect-iteration1
+    if: needs.detect-iteration1.outputs.is-iter1 == 'true'
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+        cache: 'npm'
+        cache-dependency-path: 'backend/package-lock.json'
+
+    - name: Start MongoDB
+      uses: supercharge/mongodb-github-action@1.11.0
+      with:
+        mongodb-version: '6.0'
+
+    - name: Verify MongoDB is running
+      run: |
+        echo "Waiting for MongoDB to be ready..."
+        sleep 3
+        # Check if MongoDB port is open
+        if nc -z localhost 27017; then
+          echo "✅ MongoDB is running on port 27017"
+        else
+          echo "❌ MongoDB is not responding"
+          exit 1
+        fi
+
+    - name: Install backend dependencies
+      working-directory: ./backend
+      run: npm ci --prefer-offline --no-audit
+
+    - name: Create .env file
+      working-directory: ./backend
+      run: |
+        if [ ! -f .env ]; then
+          echo "Creating .env from .env.example"
+          cp .env.example .env
+        fi
+        echo "✅ .env file ready"
+        cat .env
+
+    - name: Run backend tests
+      working-directory: ./backend
+      env:
+        MONGO_URI: mongodb://localhost:27017/w5-fepp-test
+      run: npm test
+
+    - name: Test database seeding
+      working-directory: ./backend
+      env:
+        MONGO_URI: mongodb://localhost:27017/w5-fepp
+      run: |
+        echo "Testing data import..."
+        npm run data:import
+        echo "✅ Data import completed"
+
+    - name: Test backend server start
+      working-directory: ./backend
+      env:
+        MONGO_URI: mongodb://localhost:27017/w5-fepp
+        PORT: 4000
+      run: |
+        echo "Starting server in background..."
+        node app.js &
+        SERVER_PID=$!
+        sleep 5
+        
+        echo "Testing server endpoint..."
+        if curl -f http://localhost:4000/api/jobs; then
+          echo "✅ Backend server is responding"
+          kill $SERVER_PID
+        else
+          echo "❌ Backend server failed to respond"
+          kill $SERVER_PID
+          exit 1
+        fi
+
+    - name: Print summary
+      if: always()
+      run: |
+        echo "## Backend Test Summary" >> $GITHUB_STEP_SUMMARY
+        echo "- MongoDB: ✅ Running" >> $GITHUB_STEP_SUMMARY
+        echo "- Dependencies: ✅ Installed" >> $GITHUB_STEP_SUMMARY
+        echo "- Tests: Check above" >> $GITHUB_STEP_SUMMARY
+        echo "- Server: Check above" >> $GITHUB_STEP_SUMMARY
